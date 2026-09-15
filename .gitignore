@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Data / downloads
+experiments/data/
+*.gz
+*.npz
+*.idx3-ubyte
+*.idx1-ubyte
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# LaTeX build artifacts (keep .tex / .pdf)
+papers/**/*.aux
+papers/**/*.log
+papers/**/*.out
+papers/**/*.toc
+papers/**/*.synctex.gz
+papers/**/*.fls
+papers/**/*.fdb_latexmk
+papers/**/*.bbl
+papers/**/*.blg
+
+# Local nets / misc
+.netlify/
+node_modules/

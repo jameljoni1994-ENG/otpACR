@@ -1,0 +1,12 @@
+{
+  "figures": [
+    "fig_baseline_condition",
+    "fig_krylov_vs_exact",
+    "fig_arc_sensitivity",
+    "fig_quasi_newton",
+    "fig_accelerated",
+    "fig_stochastic",
+    "fig_tensor",
+    "fig_distributed"
+  ]
+}

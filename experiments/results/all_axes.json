@@ -1,0 +1,439 @@
+{
+  "quadratic_core": {
+    "cr": {
+      "nit": 7,
+      "time_sec": 0.002175600006012246,
+      "grad_norm": 2.2717544937030485e-12,
+      "f": -0.7024001472995312,
+      "success": true,
+      "n_f": 7,
+      "n_grad": 7,
+      "n_hess": 6,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps",
+      "history_f": [
+        1282.8038746109787,
+        5.160136845558483,
+        -0.6064949139095236,
+        -0.7001972171287661,
+        -0.7023980112232642,
+        -0.7024001472972593,
+        -0.7024001472995312
+      ],
+      "history_grad_norm": [
+        414.9942302117891,
+        20.216612611800052,
+        0.5387868007823836,
+        0.06650246668388524,
+        0.002066982070267327,
+        2.1316495320369575e-06,
+        2.2717544937030485e-12
+      ],
+      "history_M": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "krylov_m20": {
+      "nit": 7,
+      "time_sec": 0.002812499995343387,
+      "grad_norm": 3.314178635361734e-09,
+      "f": -0.7024001472995315,
+      "success": true,
+      "n_f": 7,
+      "n_grad": 7,
+      "n_hess": 0,
+      "n_hvp": 126,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps",
+      "history_f": [
+        1282.8038746109787,
+        5.160138984037699,
+        -0.60647831263279,
+        -0.7001963439363457,
+        -0.7023980095123955,
+        -0.7024001472972512,
+        -0.7024001472995315
+      ],
+      "history_grad_norm": [
+        414.9942302117891,
+        20.216612467657033,
+        0.5389733615815117,
+        0.06652643448400386,
+        0.0020681287483320836,
+        2.172302776248698e-06,
+        3.314178635361734e-09
+      ],
+      "history_M": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "arc": {
+      "nit": 6,
+      "time_sec": 0.00181940000038594,
+      "grad_norm": 9.577055757793276e-13,
+      "f": -0.7024001472995314,
+      "success": true,
+      "n_f": 6,
+      "n_grad": 6,
+      "n_hess": 5,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps",
+      "history_f": [
+        1282.8038746109787,
+        5.160136845558483,
+        -0.661065148480895,
+        -0.7023557951047968,
+        -0.7024001472842077,
+        -0.7024001472995314
+      ],
+      "history_grad_norm": [
+        414.9942302117891,
+        20.216612611800052,
+        0.33829764442244686,
+        0.009429000225334442,
+        5.536091277062693e-06,
+        9.577055757793276e-13
+      ],
+      "history_M": [
+        1.0,
+        0.5,
+        0.25,
+        0.125,
+        0.0625,
+        0.03125
+      ]
+    },
+    "arc_krylov": {
+      "nit": 7,
+      "time_sec": 0.0016797999996924773,
+      "grad_norm": 5.232310778783939e-07,
+      "f": -0.7024001472995259,
+      "success": true,
+      "n_f": 7,
+      "n_grad": 7,
+      "n_hess": 0,
+      "n_hvp": 96,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps",
+      "history_f": [
+        1282.8038746109787,
+        5.160461713817142,
+        -0.660472941835226,
+        -0.7023522227804472,
+        -0.702400139799652,
+        -0.7024001472936898,
+        -0.7024001472995259
+      ],
+      "history_grad_norm": [
+        414.9942302117891,
+        20.21662641545098,
+        0.3565175062591649,
+        0.012000577488439534,
+        0.0005973441505020097,
+        6.545489633058445e-06,
+        5.232310778783939e-07
+      ],
+      "history_M": [
+        1.0,
+        0.5,
+        0.25,
+        0.125,
+        0.0625,
+        0.03125,
+        0.015625
+      ]
+    }
+  },
+  "quasi_newton": {
+    "cr": {
+      "nit": 7,
+      "time_sec": 0.002677099997526966,
+      "grad_norm": 2.2717544937030485e-12,
+      "f": -0.7024001472995312,
+      "success": true,
+      "n_f": 7,
+      "n_grad": 7,
+      "n_hess": 6,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps"
+    },
+    "qn_m10": {
+      "nit": 130,
+      "time_sec": 0.05204049999883864,
+      "grad_norm": 9.891506479347837e-07,
+      "f": -0.7024001472994357,
+      "success": true,
+      "n_f": 130,
+      "n_grad": 130,
+      "n_hess": 0,
+      "n_hvp": 0,
+      "rejected_steps": 64,
+      "message": "gradient norm below eps"
+    },
+    "lbfgs_plain": {
+      "nit": 38,
+      "time_sec": 0.004041199994389899,
+      "grad_norm": 0.00031281544202326546,
+      "f": -0.7024001254126331,
+      "success": true,
+      "n_f": 81,
+      "n_grad": 82,
+      "n_hess": 0,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    }
+  },
+  "mlp_qn": {
+    "qn": {
+      "nit": 4,
+      "time_sec": 0.001640099988435395,
+      "grad_norm": 1.6129710122249016e-07,
+      "f": 0.28809784476408046,
+      "success": true,
+      "n_f": 4,
+      "n_grad": 4,
+      "n_hess": 0,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps"
+    }
+  },
+  "accelerated": {
+    "kappa_10": {
+      "cr": {
+        "nit": 7,
+        "time_sec": 0.0015063000028021634,
+        "grad_norm": 2.963450065904477e-13,
+        "f": -6.851370728838686,
+        "success": true,
+        "n_f": 7,
+        "n_grad": 7,
+        "n_hess": 6,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      },
+      "acc": {
+        "nit": 8,
+        "time_sec": 0.0017690999957267195,
+        "grad_norm": 1.328981178745344e-11,
+        "f": -6.851370728838686,
+        "success": true,
+        "n_f": 9,
+        "n_grad": 15,
+        "n_hess": 7,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      }
+    },
+    "kappa_100": {
+      "cr": {
+        "nit": 6,
+        "time_sec": 0.0012203999940538779,
+        "grad_norm": 2.046539275998212e-10,
+        "f": -1.029760332889502,
+        "success": true,
+        "n_f": 6,
+        "n_grad": 6,
+        "n_hess": 5,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      },
+      "acc": {
+        "nit": 7,
+        "time_sec": 0.0018389000033494085,
+        "grad_norm": 3.7194792445887158e-09,
+        "f": -1.029760332889502,
+        "success": true,
+        "n_f": 8,
+        "n_grad": 13,
+        "n_hess": 6,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      }
+    },
+    "kappa_1000": {
+      "cr": {
+        "nit": 6,
+        "time_sec": 0.0013344000035431236,
+        "grad_norm": 1.5758812256757293e-11,
+        "f": -0.13008281144339842,
+        "success": true,
+        "n_f": 6,
+        "n_grad": 6,
+        "n_hess": 5,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      },
+      "acc": {
+        "nit": 7,
+        "time_sec": 0.001309600003878586,
+        "grad_norm": 1.3296318215324167e-09,
+        "f": -0.1300828114433985,
+        "success": true,
+        "n_f": 8,
+        "n_grad": 13,
+        "n_hess": 6,
+        "n_hvp": 0,
+        "rejected_steps": 0,
+        "message": "gradient norm below eps"
+      }
+    }
+  },
+  "stochastic": {
+    "full_cr": {
+      "nit": 30,
+      "time_sec": 0.023402899998473004,
+      "grad_norm": 0.010911860137098986,
+      "f": 0.07492832717771926,
+      "success": false,
+      "n_f": 31,
+      "n_grad": 30,
+      "n_hess": 30,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached"
+    },
+    "sub_cr": {
+      "nit": 50,
+      "time_sec": 0.023141300000133924,
+      "grad_norm": 0.03177016573692107,
+      "f": 0.08325985012260337,
+      "success": false,
+      "n_f": 51,
+      "n_grad": 100,
+      "n_hess": 50,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached"
+    },
+    "sgd": {
+      "nit": 200,
+      "time_sec": 0.015335100004449487,
+      "grad_norm": 0.051369195618324245,
+      "f": 0.17945266548048183,
+      "success": false,
+      "n_f": 201,
+      "n_grad": 400,
+      "n_hess": 0,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "done"
+    },
+    "adam": {
+      "nit": 200,
+      "time_sec": 0.018799800003762357,
+      "grad_norm": 0.021244926777774297,
+      "f": 0.07431963018645601,
+      "success": false,
+      "n_f": 201,
+      "n_grad": 400,
+      "n_hess": 0,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "done"
+    }
+  },
+  "tensor": {
+    "cr": {
+      "nit": 7,
+      "time_sec": 0.0016810999950394034,
+      "grad_norm": 9.041900342266257e-06,
+      "f": 3.030800727453955,
+      "success": true,
+      "n_f": 7,
+      "n_grad": 7,
+      "n_hess": 6,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps"
+    },
+    "tensor": {
+      "nit": 5,
+      "time_sec": 0.012662699999054894,
+      "grad_norm": 7.727619233655442e-06,
+      "f": 3.030800727394053,
+      "success": true,
+      "n_f": 5,
+      "n_grad": 5,
+      "n_hess": 104,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "gradient norm below eps"
+    }
+  },
+  "distributed": {
+    "workers_1": {
+      "nit": 80,
+      "time_sec": 0.10224710000329651,
+      "grad_norm": 0.566900056426545,
+      "f": -0.5460129181867909,
+      "success": false,
+      "n_f": 81,
+      "n_grad": 80,
+      "n_hess": 80,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached; bytes\u22481200000"
+    },
+    "workers_2": {
+      "nit": 80,
+      "time_sec": 0.10407760000089183,
+      "grad_norm": 0.566900056426545,
+      "f": -0.5460129181867909,
+      "success": false,
+      "n_f": 81,
+      "n_grad": 80,
+      "n_hess": 80,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached; bytes\u22482400000"
+    },
+    "workers_4": {
+      "nit": 80,
+      "time_sec": 0.10023969999747351,
+      "grad_norm": 0.566900056426545,
+      "f": -0.5460129181867909,
+      "success": false,
+      "n_f": 81,
+      "n_grad": 80,
+      "n_hess": 80,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached; bytes\u22484800000"
+    },
+    "workers_8": {
+      "nit": 80,
+      "time_sec": 0.09546189999673516,
+      "grad_norm": 0.566900056426545,
+      "f": -0.5460129181867909,
+      "success": false,
+      "n_f": 81,
+      "n_grad": 80,
+      "n_hess": 80,
+      "n_hvp": 0,
+      "rejected_steps": 0,
+      "message": "max_iter reached; bytes\u22489600000"
+    }
+  }
+}
