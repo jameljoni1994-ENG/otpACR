@@ -41,6 +41,8 @@ papers/**/*.fls
 papers/**/*.fdb_latexmk
 papers/**/*.bbl
 papers/**/*.blg
+texput.log
+**/texput.log
 
 # Local nets / misc
 .netlify/

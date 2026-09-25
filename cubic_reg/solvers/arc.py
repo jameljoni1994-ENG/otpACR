@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import time
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 import numpy as np
 
 from cubic_reg.metrics import OptimizationResult
 from cubic_reg.problems.base import Problem
 from cubic_reg.subproblem import model_decrease, solve_cubic_subproblem
-from cubic_reg.solvers.krylov import lanczos_tridiag
-from cubic_reg.subproblem import solve_cubic_subproblem_reduced
+from cubic_reg.solvers.krylov import solve_inexact_step, theta_schedule
 
 
 def minimize(
@@ -28,19 +27,29 @@ def minimize(
     M_max: float = 1e16,
     mode: Literal["exact", "krylov"] = "exact",
     krylov_dim: int = 20,
+    m_max: Optional[int] = None,
+    inexact_tol: float = 0.5,
+    adaptive_tol: bool = True,
+    tol_power: float = 1.0,
     verbose: bool = False,
 ) -> OptimizationResult:
     """ARC with ratio-test adaptation of M.
 
     rho = (f_k - f_{k+1}) / (f_k - m_k(s_k))
     Accept if rho >= eta1; shrink M if rho >= eta2, grow if rejected/small rho.
+
+    When ``mode="krylov"``, the cubic step uses adaptive inexact Lanczos
+    (``solve_inexact_step`` + ``theta_schedule``), matching the training path.
     """
     problem.reset_counters()
     x = np.zeros(problem.dim) if x0 is None else np.asarray(x0, dtype=float).copy()
     M = float(M0)
-    history_f: list[float] = []
-    history_g: list[float] = []
-    history_M: list[float] = []
+    history_f: List[float] = []
+    history_g: List[float] = []
+    history_M: List[float] = []
+    history_resid: List[float] = []
+    history_m: List[int] = []
+    history_theta: List[float] = []
     rejected = 0
 
     t0 = time.perf_counter()
@@ -48,6 +57,7 @@ def minimize(
     message = "max_iter reached"
     gnorm = np.inf
     fx = problem.f(x)
+    m_cap = m_max if m_max is not None else min(problem.dim, max(krylov_dim * 4, 80))
 
     for k in range(max_iter):
         g = problem.grad(x)
@@ -62,35 +72,38 @@ def minimize(
         if gnorm <= eps:
             success = True
             message = "gradient norm below eps"
+            history_theta.append(0.0)
+            history_m.append(0)
+            history_resid.append(0.0)
             break
 
-        # Solve cubic subproblem
         if mode == "exact":
             H = problem.hess(x)
             sol = solve_cubic_subproblem(g, H, M)
-            pred = sol.model_decrease
-            # recompute with stored H for ratio
             if not sol.success:
                 M = min(M_max, M * gamma2)
                 rejected += 1
+                history_theta.append(0.0)
+                history_m.append(0)
+                history_resid.append(0.0)
                 continue
             s = sol.s
             md = model_decrease(g, H, s, M)
+            history_theta.append(0.0)
+            history_m.append(problem.dim)
+            history_resid.append(0.0)
         else:
-            Q, T, g_red = lanczos_tridiag(problem.hvp, x, g, krylov_dim)
-            if Q.shape[1] == 0:
-                success = True
-                message = "zero gradient"
-                break
-            sol, s_red = solve_cubic_subproblem_reduced(g_red, T, M, Q=Q)
-            if not sol.success:
+            theta = theta_schedule(k, inexact_tol, tol_power) if adaptive_tol else inexact_tol
+            history_theta.append(theta)
+            s, lam, m_used, resid, ok = solve_inexact_step(
+                problem, x, g, M, krylov_dim, m_cap, theta
+            )
+            history_m.append(m_used)
+            history_resid.append(resid)
+            if not ok and np.linalg.norm(s) == 0:
                 M = min(M_max, M * gamma2)
                 rejected += 1
                 continue
-            s = sol.s
-            # predicted decrease in reduced model
-            md = sol.model_decrease
-            # Also estimate with full HVP for better ratio
             Hs = problem.hvp(x, s)
             sn = float(np.linalg.norm(s))
             md = float(-(g @ s + 0.5 * s @ Hs + (M / 6.0) * sn**3))
@@ -132,5 +145,8 @@ def minimize(
         history_f=history_f,
         history_grad_norm=history_g,
         history_M=history_M,
+        history_resid=history_resid,
+        history_m=history_m,
+        history_theta=history_theta,
         f_star=problem.f_star,
     )

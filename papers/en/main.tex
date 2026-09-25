@@ -48,8 +48,9 @@ Nesterov's cubic regularization (CR) of Newton's method is a cornerstone of seco
 In practice, the exact cubic subproblem requires an eigendecomposition of an $n\times n$ Hessian and is therefore intractable for large $n$.
 This paper develops a complete theoretical and experimental treatment of seven improvement axes for CR: (i)~acceleration to $O(1/k^{3})$, (ii)~inexact Krylov/Lanczos subproblem solves with adaptive residual tolerances, (iii)~adaptive regularization using cubics (ARC), (iv)~stochastic/subsampled variants, (v)~higher-order tensor methods, (vi)~sketched distributed ARC, and (vii)~quasi-Newton cubic hybrids.
 We state the classical global complexity theorems with full proofs (or self-contained reconstructions), derive sufficient inexactness conditions that preserve the $O(\varepsilon^{-3/2})$ gradient complexity of ARC, and prove that an adaptive Krylov dimension schedule driven by $\theta_{k}=\theta_{0}/(k+1)^{p}$ eventually meets those conditions whenever Hessian--vector products are exact.
-Empirically, across analytic benchmarks and real MNIST (binary logistic and $10$-class softmax with $7840$ parameters), ARC--Krylov is strongest on optimality measures $f$ and $\norm{\grad f}$, while L-BFGS is typically fastest; validation early stopping raises softmax test accuracy from $\approx 87\%$ to $\approx 90\%$.
-A reproducible Python package accompanies the study.
+Empirically, across analytic benchmarks and real MNIST (binary logistic and $10$-class softmax with $7840$ parameters), ARC--Krylov is strongest on optimality measures $f$ and $\norm{\grad f}$, while L-BFGS is typically fastest; validation early stopping raises softmax test accuracy from $\approx 87\%$ to $\approx 90\%$ on a subsample, and to $\approx 91\%$ on the full $\approx 60$k training set.
+We further unify adaptive inexact Krylov inside ARC, replace dense L-BFGS cubic steps by matrix-free Krylov-on-$B_{k}$ products, and add ARC-style ratio tests to subsampled CR together with an $\ell_{2}$-regularization path under early stopping.
+A reproducible Python package (\texttt{cubic\_reg}~$0.2$) accompanies the study.
 \end{abstract}
 
 \tableofcontents
@@ -85,8 +86,9 @@ The $O(n^{3})$ cost (and $O(n^{2})$ memory) precludes large-scale machine learni
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{Theory.} We give a self-contained development of CR global complexity (Theorem~\ref{thm:cr-rate}), accelerated CR (Theorem~\ref{thm:acc-cr}), ARC complexity (Theorem~\ref{thm:arc}), and sufficient inexact subproblem conditions (Theorem~\ref{thm:inexact}). We prove that adaptive Krylov growth under residual tests recovers exact-rate guarantees (Theorem~\ref{thm:krylov-adapt}).
   \item \textbf{Algorithms.} We specify Algorithms~\ref{alg:cr}--\ref{alg:arc-krylov} as implemented in the \texttt{cubic\_reg} package.
-  \item \textbf{Experiments.} Nine experimental phases cover analytic rates, high-dimensional Krylov scalability ($n\le 10^{4}$), adaptive $\theta_{k}$ schedules, sketched distributed ARC, and real MNIST (binary and multiclass), including hyperparameter sweeps and early stopping.
-  \item \textbf{Recommendations.} We give precise practical guidance: ARC--Krylov for optimality quality; L-BFGS (or ARC) with validation early stopping for generalization under wall-time budgets.
+  \item \textbf{Experiments.} Ten experimental phases cover analytic rates, high-dimensional Krylov scalability ($n\le 10^{4}$), adaptive $\theta_{k}$ schedules, sketched distributed ARC, real MNIST (binary and multiclass) with early stopping, full-scale MNIST ($\approx 60$k), $\ell_{2}$ path schedules, and sketch scaling at $n\in\{2{\cdot}10^{3},8{\cdot}10^{3},2{\cdot}10^{4}\}$.
+  \item \textbf{Software.} Canonical ARC--Krylov uses the same adaptive inexact subproblem path as training wrappers; quasi-Newton CR is matrix-free by default; stochastic CR adapts $M$ via a ratio test.
+  \item \textbf{Recommendations.} ARC--Krylov for optimality quality; L-BFGS (or ARC) with validation early stopping for generalization under wall-time budgets; optional $\ell_{2}$ path when regularization sensitivity matters.
 \end{enumerate}
 
 \paragraph{Organization.}
@@ -429,7 +431,8 @@ $\norm{\tilde g_{k}-g_{k}}\le\nu_{k}$ and $\norm{\tilde H_{k}-H_{k}}\le\xi_{k}$ 
 \begin{proposition}[L-BFGS cubic hybrid]
 \label{prop:lbfgs}
 Replacing $H_{k}$ by a limited-memory BFGS matrix $B_{k}\succ 0$ preserves well-posedness of~\eqref{eq:opt-lin}--\eqref{eq:opt-psd} but forfeits the global $O(1/k^{2})$ guarantee unless additional Hessian-approximation error bounds hold.
-Empirically, pure L-BFGS (without cubic regularization) remains highly competitive on generalized linear models; dense cubic QN that materializes $B_{k}\in\R^{n\times n}$ is unsuitable for $n\sim 10^{4}$.
+Empirically, pure L-BFGS (without cubic regularization) remains highly competitive on generalized linear models.
+Our implementation applies $B_{k}$ only through compact matrix--vector products and solves the cubic subproblem by the same adaptive Krylov procedure as Axis~2, avoiding an explicit $B_{k}\in\R^{n\times n}$ at $n\sim 10^{4}$.
 \end{proposition}
 
 %======================================================================
@@ -449,7 +452,7 @@ Lanczos HVPs; adaptive $m$ and $\theta_{k}$ (Theorems~\ref{thm:inexact}--\ref{th
 Ratio test on $M_{k}$ (Theorem~\ref{thm:arc}); default practical solver when $L$ is unknown.
 
 \paragraph{Axis 4 --- Stochastic CR.}
-Mini-batch gradients/Hessians; compare wall-clock to SGD/Adam on logistic/MNIST.
+Mini-batch gradients/Hessians with optional ARC-style ratio tests on $M$ and infrequent full-batch evaluation for logging/stopping; compare wall-clock to SGD/Adam on logistic/MNIST.
 
 \paragraph{Axis 5 --- Tensor methods.}
 Third-order models with quartic regularization~\cite{nesterov2021implementable}; exploratory due to $O(n^{3})$ tensor costs.
@@ -458,7 +461,7 @@ Third-order models with quartic regularization~\cite{nesterov2021implementable};
 Sketch Hessians before reduction; measure speedup vs.\ workers with persistent pools.
 
 \paragraph{Axis 7 --- Quasi-Newton CR.}
-L-BFGS memory pairs inside the cubic model; compare to plain L-BFGS.
+L-BFGS memory pairs inside the cubic model via matrix-free $B_{k}v$ products and Krylov subproblem solves; compare to plain L-BFGS.
 
 %======================================================================
 \section{Algorithms}
@@ -509,8 +512,8 @@ L-BFGS memory pairs inside the cubic model; compare to plain L-BFGS.
 Shared oracles count evaluations of $f$, $\grad f$, Hessians, and HVPs.
 Wall-clock time is measured in process time on a single machine (Windows, CPython, NumPy/SciPy).
 Problems: controlled quadratics, LogSumExp, Rosenbrock/Rastrigin, synthetic logistic, matrix-free quadratics ($n=10^{4}$), and real MNIST (Google CVDF mirrors).
-Scripts: \texttt{experiments/run\_phase\{1--9\}.py}; figures under \texttt{experiments/figures/}.
-Unit tests: $27$ passing.
+Scripts: \texttt{experiments/run\_phase\{1--10\}.py}; figures under \texttt{experiments/figures/}.
+Unit tests: $34$ passing.
 
 \subsection{Analytic rates and Krylov scalability}
 On convex LogSumExp, CR tracks an empirical $O(1/k^{2})$ envelope while accelerated variants approach steeper slopes when Armijo/restart are inactive.
@@ -579,32 +582,83 @@ L-BFGS full & 0.868 & 0.043 & 1.27 \\
 \noindent
 Early stopping lifts test accuracy by $\approx +3.5$ points for both solvers while leaving larger training loss---a clear overfitting signature when optimizing $f$ to machine precision on a finite sample.
 
+\subsection{Full-scale MNIST, $\ell_{2}$ path, and sketch scaling}
+Phase~10 unifies the adaptive inexact Krylov path inside \texttt{arc.minimize(mode="krylov")}, enables matrix-free quasi-Newton CR by default, and evaluates larger data regimes (\texttt{experiments/run\_phase10.py}).
+
+\paragraph{Full MNIST ($\approx 60$k).}
+Train/val/test $\approx 38400/9600/12000$, dimension $7840$, patience $6$.
+
+\begin{table}[t]
+\centering
+\caption{Full MNIST softmax with validation early stopping (phase~10).}
+\label{tab:full}
+\begin{tabular}{lrrr}
+\toprule
+Method & Test acc. & Time (s) & Notes \\
+\midrule
+ARC--Krylov + ES & \textbf{0.913} & 52.9 & adaptive $\theta_{k}$, HVP \\
+L-BFGS + ES & 0.910 & \textbf{3.7} & SciPy L-BFGS-B \\
+QN-CR (matrix-free) & 0.910 & 2.6 & compact $B_{k}v$ + Krylov \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the medium subsample ($\approx 12$k), ARC--ES reaches $\approx 0.921$ test accuracy versus $\approx 0.914$ for L-BFGS--ES, confirming that the full-data ranking is stable under early stopping.
+
+\paragraph{$\ell_{2}$ regularization path.}
+Warm-started early stopping along $\lambda\in\{10^{-2},3{\cdot}10^{-3},10^{-3},3{\cdot}10^{-4},10^{-4}\}$ yields best validation models with test accuracy $\approx 0.898$ (ARC path) and $\approx 0.892$ (L-BFGS path) on an $8$k subsample---useful when a single $\ell_{2}$ choice is uncertain.
+
+\paragraph{Sketch--Krylov scaling.}
+Matrix-free sketched ARC--Krylov on analytic quadratics reports wall times $\approx 0.02$\,s / $0.07$\,s / $0.33$\,s at $n=2{\cdot}10^{3}/8{\cdot}10^{3}/2{\cdot}10^{4}$ (sketch rank $20$), consistent with near-linear growth in HVP cost.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{25_phase10_mnist.png}
+\caption{Full/medium MNIST summary.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{27_phase10_sketch_scale.png}
+\caption{Sketch scaling vs.\ $n$.}
+\end{subfigure}
+\caption{Phase~10 figures: MNIST comparison and sketched Krylov wall-clock scaling.}
+\label{fig:p10}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{26_phase10_l2_path.png}
+\caption{$\ell_{2}$ path with early stopping (validation accuracy along the path).}
+\label{fig:l2path}
+\end{figure}
+
 %======================================================================
 \section{Discussion}
 \label{sec:discuss}
 %======================================================================
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Theory vs.\ practice.} Theorems~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} justify adaptive inexact ARC--Krylov as a complexity-preserving large-scale method. On GLMs, L-BFGS often wins wall-clock races because each iteration is cheaper than even modest Krylov subspaces.
-  \item \textbf{Generalization.} Optimizing $\norm{\grad f}$ is not a proxy for test accuracy; validation monitoring is essential (Tables~\ref{tab:softmax}--\ref{tab:es}).
-  \item \textbf{When to use CR.} Prefer ARC--Krylov when the Hessian is available via HVPs and solution quality matters (nonconvex analytic problems, ill-conditioned quadratics). Prefer L-BFGS+ES for routine multiclass logistic training.
-  \item \textbf{Limitations.} Tensor methods remain exploratory; distributed sketching speedups on shared-memory pools are modest due to Python process overhead; full $60$k MNIST is left to future work.
+  \item \textbf{Theory vs.\ practice.} Theorems~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} justify adaptive inexact ARC--Krylov as a complexity-preserving large-scale method. On GLMs, L-BFGS often wins wall-clock races because each iteration is cheaper than even modest Krylov subspaces (Table~\ref{tab:full}).
+  \item \textbf{Generalization.} Optimizing $\norm{\grad f}$ is not a proxy for test accuracy; validation monitoring is essential (Tables~\ref{tab:softmax}--\ref{tab:full}).
+  \item \textbf{When to use CR.} Prefer ARC--Krylov when the Hessian is available via HVPs and solution quality matters (nonconvex analytic problems, ill-conditioned quadratics). Prefer L-BFGS+ES for routine multiclass logistic training; matrix-free QN-CR is a competitive middle ground on full MNIST.
+  \item \textbf{Limitations.} Tensor methods remain exploratory; distributed sketching speedups on shared-memory pools are modest due to Python process overhead; true MPI communication and joint $(M,\ell_{2})$ schedules beyond warm-started paths remain open.
 \end{itemize}
 
 %======================================================================
 \section{Software}
 \label{sec:soft}
 %======================================================================
-The package \texttt{cubic\_reg} implements solvers (\texttt{cr}, \texttt{krylov}, \texttt{arc}, \texttt{quasi\_newton}, \texttt{stochastic}, \texttt{sketch\_krylov}, \ldots), problem oracles, metrics, and plotting.
-Phase scripts reproduce all tables/figures; \texttt{pytest} reports $27$ passed tests.
+The package \texttt{cubic\_reg} (version~$0.2$) implements solvers (\texttt{cr}, \texttt{krylov}, \texttt{arc}, \texttt{quasi\_newton}, \texttt{stochastic}, \texttt{sketch\_krylov}, \ldots), problem oracles, metrics, training helpers (\texttt{arc\_krylov\_early\_stop}, \texttt{l2\_path\_early\_stop}), and plotting.
+Phase scripts reproduce all tables/figures; \texttt{pytest} reports $34$ passed tests.
 
 %======================================================================
 \section{Conclusion}
 \label{sec:conc}
 %======================================================================
-We provided a unified theoretical account of cubic regularization---global rates, acceleration, ARC complexity, and adaptive inexact Krylov conditions---together with a comprehensive experimental evaluation on analytic and MNIST tasks.
-Adaptive ARC--Krylov and L-BFGS with early stopping emerge as complementary practical tools.
-Future work: joint $(\ell_{2},M)$ path schedules, full-scale MNIST, and HPC backends for sketched communication.
+We provided a unified theoretical account of cubic regularization---global rates, acceleration, ARC complexity, and adaptive inexact Krylov conditions---together with a comprehensive experimental evaluation on analytic and MNIST tasks through full-scale data.
+Adaptive ARC--Krylov and L-BFGS with early stopping emerge as complementary practical tools; matrix-free quasi-Newton CR and $\ell_{2}$ paths further close the gap between theory and large-$n$ practice.
+Future work: joint $(M,\ell_{2})$ schedules with stronger path guarantees, and HPC/MPI backends for sketched communication.
 
 %======================================================================
 \appendix
@@ -657,9 +711,10 @@ Summing from $0$ to $k-1$ proves Lemma~\ref{lem:np-aux} and hence Theorem~\ref{t
 
 \section{Additional experimental notes}
 \label{app:exp}
-Phases 1--9 log JSON under \texttt{experiments/results/}.
+Phases 1--10 log JSON under \texttt{experiments/results/} (including \texttt{phase10.json}).
 Distributed experiments use a persistent \texttt{multiprocessing} pool to avoid Windows spawn overhead.
 Softmax HVPs are implemented exactly via Jacobians of the linear map $W\in\R^{10\times 784}$ without forming the $7840\times 7840$ Hessian.
+Phase~10 merge-writes allow partial reruns (\texttt{--skip-mnist}/\texttt{--skip-l2}/\texttt{--skip-sketch}) without erasing sibling sections.
 
 \begin{thebibliography}{99}
 \bibitem{nesterov2006cubic}

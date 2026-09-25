@@ -154,6 +154,63 @@ def arc_krylov_early_stop(
     )
 
 
+def l2_path_early_stop(
+    prob: SoftmaxRegression,
+    Xv: np.ndarray,
+    yv: np.ndarray,
+    l2_grid: Optional[List[float]] = None,
+    solver: str = "arc",
+    x0: Optional[np.ndarray] = None,
+    max_iter: int = 40,
+    patience: int = 6,
+    krylov_dim: int = 30,
+    m_max: int = 60,
+) -> EarlyStopResult:
+    """Train along an l2 regularization path; keep the best validation model.
+
+    For each λ in ``l2_grid``, run early-stopped ARC–Krylov or L-BFGS and retain
+    the iterate with highest validation accuracy across the path.
+    """
+    if l2_grid is None:
+        l2_grid = [1e-2, 1e-3, 1e-4, 1e-5]
+    x_init = np.zeros(prob.dim) if x0 is None else np.asarray(x0, dtype=float).copy()
+    best: Optional[EarlyStopResult] = None
+    path_notes: List[str] = []
+    t0 = time.perf_counter()
+
+    for lam in l2_grid:
+        prob.l2 = float(lam)
+        if solver == "lbfgs":
+            res = lbfgs_early_stop(
+                prob, Xv, yv, x0=x_init.copy(), max_iter=max_iter, patience=patience
+            )
+        else:
+            res = arc_krylov_early_stop(
+                prob,
+                Xv,
+                yv,
+                x0=x_init.copy(),
+                max_iter=max_iter,
+                patience=patience,
+                krylov_dim=krylov_dim,
+                m_max=m_max,
+            )
+        path_notes.append(f"l2={lam:g}->val_acc={res.best_val_acc:.4f}@iter{res.best_iter}")
+        # warm-start next λ from this solution
+        x_init = res.x.copy()
+        if best is None or res.best_val_acc > best.best_val_acc:
+            best = res
+
+    assert best is not None
+    best.message = (
+        f"l2_path best_val={best.best_val_acc:.4f}; "
+        + "; ".join(path_notes)
+        + f"; wall={time.perf_counter() - t0:.2f}s"
+    )
+    best.time_sec = time.perf_counter() - t0
+    return best
+
+
 def lbfgs_early_stop(
     prob: SoftmaxRegression,
     Xv: np.ndarray,

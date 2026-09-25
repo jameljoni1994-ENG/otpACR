@@ -4,21 +4,21 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Deque, Optional, Tuple
+from typing import Deque, List, Optional
 
 import numpy as np
 
 from cubic_reg.metrics import OptimizationResult
 from cubic_reg.problems.base import Problem
 from cubic_reg.subproblem import solve_cubic_subproblem
+from cubic_reg.solvers.krylov import solve_inexact_step, theta_schedule
 
 
 class LBFGSHessian:
-    """Compact limited-memory BFGS Hessian approximation (dense for small m*n).
+    """Limited-memory BFGS Hessian approximation.
 
-    Stores pairs (s, y) and can form a dense matrix H_k for the cubic subproblem
-    when dimension is moderate, or apply H_k @ v via two-loop recursion style
-    for the Hessian (forward BFGS).
+    Supports matrix-free ``matvec`` via the compact Byrd–Nocedal–Schnabel form
+    and an optional dense ``to_dense`` path for small-dimension reference solves.
     """
 
     def __init__(self, n: int, memory: int = 10):
@@ -37,26 +37,27 @@ class LBFGSHessian:
         self.gamma = ys / float(y @ y)
 
     def matvec(self, v: np.ndarray) -> np.ndarray:
-        """Apply approximate Hessian B_k to v (compact BFGS)."""
+        """Apply approximate Hessian B_k to v (compact BFGS, O(m n + m²))."""
+        v = np.asarray(v, dtype=float)
+        gamma = max(self.gamma, 1e-16)
         if not self.S:
-            return v / self.gamma if self.gamma > 0 else v
+            return v / gamma
 
-        # Compact representation: B = gamma^{-1} I - W M W^T  (standard L-BFGS Hessian form)
-        # Use recursive formula for Hessian-vector:
-        # Start from B0 = I/gamma, apply BFGS updates sequentially.
-        Bv = v / self.gamma
-        # Rebuild via successive BFGS Hessian updates (O(m^2 n) ok for small m)
-        # Better: use explicit dense if n small; else recursive
-        pairs = list(zip(self.S, self.Y))
-        # Reset and apply updates to vector via Sherman-style accumulation is messy;
-        # form dense B when n is manageable else use loop of BFGS updates on vector.
-        return self._bfgs_matvec_from_scratch(v)
-
-    def _bfgs_matvec_from_scratch(self, v: np.ndarray) -> np.ndarray:
-        # Apply sequence of BFGS Hessian updates to vector starting from B0=I/gamma
-        # B+ = B + yy^T/(y^T s) - (Bs)(Bs)^T / (s^T B s)
-        # We maintain action on v by also tracking... actually need full matrix for cubic.
-        return self.to_dense() @ v
+        S = np.column_stack(list(self.S))
+        Y = np.column_stack(list(self.Y))
+        m = S.shape[1]
+        B0S = S / gamma
+        STY = S.T @ Y
+        D = np.diag(np.diag(STY))
+        L = np.tril(STY, k=-1)
+        STS = (S.T @ S) / gamma
+        Mid = np.block([[STS, L], [L.T, -D]])
+        rhs = np.concatenate([B0S.T @ v, Y.T @ v])
+        try:
+            alpha = np.linalg.solve(Mid, rhs)
+        except np.linalg.LinAlgError:
+            alpha = np.linalg.lstsq(Mid, rhs, rcond=None)[0]
+        return v / gamma - (B0S @ alpha[:m] + Y @ alpha[m:])
 
     def to_dense(self) -> np.ndarray:
         B = np.eye(self.n) / max(self.gamma, 1e-16)
@@ -81,15 +82,29 @@ def minimize(
     eta1: float = 0.1,
     gamma1: float = 0.5,
     gamma2: float = 2.0,
+    matrix_free: bool = True,
+    krylov_dim: int = 20,
+    m_max: Optional[int] = None,
+    inexact_tol: float = 0.5,
+    adaptive_tol: bool = True,
+    tol_power: float = 1.0,
     verbose: bool = False,
 ) -> OptimizationResult:
-    """Cubic regularization with L-BFGS Hessian approximation."""
+    """Cubic regularization with L-BFGS Hessian approximation.
+
+    By default solves the cubic subproblem in a matrix-free way via Krylov on
+    ``LBFGSHessian.matvec``. Set ``matrix_free=False`` to form dense B_k
+    (suitable only for small n).
+    """
     problem.reset_counters()
     x = np.zeros(problem.dim) if x0 is None else np.asarray(x0, dtype=float).copy()
     lbfgs = LBFGSHessian(problem.dim, memory=memory)
-    history_f: list[float] = []
-    history_g: list[float] = []
-    history_M: list[float] = []
+    history_f: List[float] = []
+    history_g: List[float] = []
+    history_M: List[float] = []
+    history_resid: List[float] = []
+    history_m: List[int] = []
+    history_theta: List[float] = []
     rejected = 0
 
     t0 = time.perf_counter()
@@ -98,6 +113,7 @@ def minimize(
     gnorm = np.inf
     fx = problem.f(x)
     g = problem.grad(x)
+    m_cap = m_max if m_max is not None else min(problem.dim, max(krylov_dim * 4, 80))
 
     for k in range(max_iter):
         gnorm = float(np.linalg.norm(g))
@@ -111,16 +127,41 @@ def minimize(
         if gnorm <= eps:
             success = True
             message = "gradient norm below eps"
+            history_theta.append(0.0)
+            history_m.append(0)
+            history_resid.append(0.0)
             break
 
-        B = lbfgs.to_dense()
-        sol = solve_cubic_subproblem(g, B, M)
-        if not sol.success:
-            message = sol.message
-            break
+        if matrix_free:
+            theta = theta_schedule(k, inexact_tol, tol_power) if adaptive_tol else inexact_tol
+            history_theta.append(theta)
+            hvp_B = lambda _x, v, _lbfgs=lbfgs: _lbfgs.matvec(v)
+            s, lam, m_used, resid, ok = solve_inexact_step(
+                problem, x, g, M, krylov_dim, m_cap, theta, hvp=hvp_B
+            )
+            history_m.append(m_used)
+            history_resid.append(resid)
+            if not ok and np.linalg.norm(s) == 0:
+                message = "inexact subproblem failed"
+                break
+            Bs = lbfgs.matvec(s)
+            sn = float(np.linalg.norm(s))
+            md = float(-(g @ s + 0.5 * s @ Bs + (M / 6.0) * sn**3))
+        else:
+            B = lbfgs.to_dense()
+            sol = solve_cubic_subproblem(g, B, M)
+            if not sol.success:
+                message = sol.message
+                history_theta.append(0.0)
+                history_m.append(0)
+                history_resid.append(0.0)
+                break
+            s = sol.s
+            md = sol.model_decrease
+            history_theta.append(0.0)
+            history_m.append(problem.dim)
+            history_resid.append(0.0)
 
-        s = sol.s
-        md = sol.model_decrease
         x_trial = x + s
         f_trial = problem.f(x_trial)
         g_trial = problem.grad(x_trial)
@@ -133,6 +174,10 @@ def minimize(
                 continue
             if rho > 0.9:
                 M = max(1e-16, M * gamma1)
+        elif adaptive_M and md <= 0:
+            rejected += 1
+            M = M * gamma2
+            continue
 
         # L-BFGS update
         y = g_trial - g
@@ -160,6 +205,9 @@ def minimize(
         history_f=history_f,
         history_grad_norm=history_g,
         history_M=history_M,
+        history_resid=history_resid,
+        history_m=history_m,
+        history_theta=history_theta,
         f_star=problem.f_star,
     )
 

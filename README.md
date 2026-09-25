@@ -58,10 +58,12 @@ print(res.nit, res.grad_norm, res.time_sec)
 ```bash
 python experiments/run_baseline.py
 python experiments/run_all.py
-python experiments/run_phase3.py   # … through run_phase9.py
+python experiments/run_phase3.py   # … through run_phase10.py
+python experiments/run_phase10.py --quick
+# Full MNIST (~60k): python experiments/run_phase10.py --full
 ```
 
-Figures land in `experiments/figures/` (`00`–`24`). JSON logs in `experiments/results/`.
+Figures land in `experiments/figures/` (`00`–`27`). JSON logs in `experiments/results/`.
 
 ## Research papers (LaTeX + PDF)
 

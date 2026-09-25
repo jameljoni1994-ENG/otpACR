@@ -54,14 +54,60 @@ def test_arc_adaptive():
 
 def test_arc_krylov_mode():
     p = Quadratic(n=30, condition=20.0, seed=4)
-    res = arc.minimize(p, x0=np.ones(p.dim), M0=1.0, mode="krylov", krylov_dim=12, eps=1e-5)
+    res = arc.minimize(
+        p,
+        x0=np.ones(p.dim),
+        M0=1.0,
+        mode="krylov",
+        krylov_dim=12,
+        m_max=40,
+        adaptive_tol=True,
+        inexact_tol=0.5,
+        eps=1e-5,
+    )
     assert res.grad_norm <= 1e-4
+    assert res.n_hvp > 0
+    assert len(res.history_theta) == len(res.history_f)
+    assert len(res.history_m) == len(res.history_f)
+    assert len(res.history_resid) == len(res.history_f)
+    # θ_k decreases under adaptive schedule
+    if len(res.history_theta) >= 2:
+        assert res.history_theta[1] <= res.history_theta[0] + 1e-12
 
 
 def test_qn_cr():
     p = Quadratic(n=20, condition=30.0, seed=5)
     res = quasi_newton.minimize(p, x0=np.ones(p.dim), M=1.0, eps=1e-5, memory=8)
     assert res.grad_norm <= 1e-4
+
+
+def test_qn_cr_matrix_free_matches_dense_shape():
+    p = Quadratic(n=25, condition=20.0, seed=11)
+    x0 = np.ones(p.dim)
+    r_mf = quasi_newton.minimize(
+        p, x0=x0.copy(), M=1.0, eps=1e-5, memory=8, matrix_free=True, krylov_dim=15, m_max=40
+    )
+    r_d = quasi_newton.minimize(
+        p, x0=x0.copy(), M=1.0, eps=1e-5, memory=8, matrix_free=False
+    )
+    assert r_mf.grad_norm <= 1e-4
+    assert r_d.grad_norm <= 1e-4
+    assert len(r_mf.history_m) == len(r_mf.history_f)
+
+
+def test_lbfgs_matvec_agrees_with_dense():
+    rng = np.random.default_rng(0)
+    n, m = 40, 6
+    B = quasi_newton.LBFGSHessian(n, memory=m)
+    for _ in range(m):
+        s = rng.standard_normal(n)
+        y = rng.standard_normal(n)
+        # ensure curvature
+        if y @ s <= 0:
+            y = s + 0.1 * y
+        B.update(s, y)
+    v = rng.standard_normal(n)
+    assert np.allclose(B.matvec(v), B.to_dense() @ v, rtol=1e-8, atol=1e-8)
 
 
 def test_accelerated_reduces_f():
@@ -74,8 +120,34 @@ def test_accelerated_reduces_f():
 
 def test_stochastic_logistic():
     prob = stochastic.make_synthetic_logistic(n_samples=400, n_features=20, seed=0)
-    res = stochastic.minimize(prob, max_iter=40, batch_grad=64, batch_hess=32, eps=1e-2, M=1.0)
+    res = stochastic.minimize(
+        prob,
+        max_iter=40,
+        batch_grad=64,
+        batch_hess=32,
+        eps=1e-2,
+        M=1.0,
+        adaptive_M=True,
+        eval_every=4,
+    )
     assert res.history_f[-1] <= res.history_f[0] + 1e-6
+    assert res.rejected_steps >= 0
+
+
+def test_stochastic_growing_batches():
+    prob = stochastic.make_synthetic_logistic(n_samples=300, n_features=15, seed=1)
+    res = stochastic.minimize(
+        prob,
+        max_iter=30,
+        batch_grad=32,
+        batch_hess=16,
+        eps=1e-2,
+        M=1.0,
+        grow_batches=True,
+        batch_grow_factor=1.5,
+        eval_every=5,
+    )
+    assert np.isfinite(res.f)
 
 
 def test_tensor_step():

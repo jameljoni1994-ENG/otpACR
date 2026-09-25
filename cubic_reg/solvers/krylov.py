@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
@@ -11,9 +11,11 @@ from cubic_reg.metrics import OptimizationResult
 from cubic_reg.problems.base import Problem
 from cubic_reg.subproblem import solve_cubic_subproblem_reduced
 
+HvpFn = Callable[[np.ndarray, np.ndarray], np.ndarray]
+
 
 def lanczos_tridiag(
-    hvp,
+    hvp: HvpFn,
     x: np.ndarray,
     g: np.ndarray,
     m: int,
@@ -66,7 +68,9 @@ def lanczos_tridiag(
     return Q, T, g_red
 
 
-def stationarity_residual(hvp, x: np.ndarray, g: np.ndarray, s: np.ndarray, lam: float) -> float:
+def stationarity_residual(
+    hvp: HvpFn, x: np.ndarray, g: np.ndarray, s: np.ndarray, lam: float
+) -> float:
     """||(H + λ I) s + g|| via HVP."""
     return float(np.linalg.norm(hvp(x, s) + lam * s + g))
 
@@ -84,11 +88,19 @@ def solve_inexact_step(
     m_start: int,
     m_max: int,
     theta: float,
+    hvp: Optional[HvpFn] = None,
 ) -> Tuple[np.ndarray, float, int, float, bool]:
     """Grow Krylov dimension until residual ≤ θ ||g|| or m_max reached.
 
+    Parameters
+    ----------
+    hvp :
+        Optional override for Hessian-vector products (e.g. L-BFGS matvec).
+        Defaults to ``problem.hvp``.
+
     Returns s, lam, m_used, residual, satisfied.
     """
+    hv: HvpFn = hvp if hvp is not None else problem.hvp
     gnorm = float(np.linalg.norm(g))
     m = max(1, min(m_start, problem.dim, m_max))
     m_cap = min(m_max, problem.dim)
@@ -98,14 +110,14 @@ def solve_inexact_step(
     satisfied = False
 
     while True:
-        Q, T, g_red = lanczos_tridiag(problem.hvp, x, g, m)
+        Q, T, g_red = lanczos_tridiag(hv, x, g, m)
         if Q.shape[1] == 0:
             return s, lam, m, 0.0, True
         sol, _ = solve_cubic_subproblem_reduced(g_red, T, M, Q=Q)
         if not sol.success:
             return s, lam, m, resid, False
         s, lam = sol.s, sol.lam
-        resid = stationarity_residual(problem.hvp, x, g, s, lam)
+        resid = stationarity_residual(hv, x, g, s, lam)
         satisfied = resid <= theta * gnorm + 1e-14
         if satisfied or m >= m_cap:
             break
@@ -164,6 +176,8 @@ def minimize(
         if gnorm <= eps:
             success = True
             message = "gradient norm below eps"
+            history_m.append(0)
+            history_resid.append(0.0)
             break
 
         s, lam, m_used, resid, ok = solve_inexact_step(
@@ -180,7 +194,7 @@ def minimize(
 
     elapsed = time.perf_counter() - t0
     c = problem.counters
-    res = OptimizationResult(
+    return OptimizationResult(
         x=x,
         f=fx,
         grad_norm=gnorm,
@@ -195,10 +209,8 @@ def minimize(
         history_f=history_f,
         history_grad_norm=history_g,
         history_M=history_M,
+        history_resid=history_resid,
+        history_m=history_m,
+        history_theta=history_theta,
         f_star=problem.f_star,
     )
-    # Attach extra diagnostics without breaking dataclass consumers
-    res.__dict__["history_resid"] = history_resid
-    res.__dict__["history_m"] = history_m
-    res.__dict__["history_theta"] = history_theta
-    return res

@@ -40,6 +40,10 @@ class OptimizationResult:
     history_f: List[float] = field(default_factory=list)
     history_grad_norm: List[float] = field(default_factory=list)
     history_M: List[float] = field(default_factory=list)
+    # Inexact Krylov / ARC–Krylov diagnostics
+    history_resid: List[float] = field(default_factory=list)
+    history_m: List[int] = field(default_factory=list)
+    history_theta: List[float] = field(default_factory=list)
     f_star: Optional[float] = None
 
     @property
