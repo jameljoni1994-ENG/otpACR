@@ -58,8 +58,9 @@ print(res.nit, res.grad_norm, res.time_sec)
 ```bash
 python experiments/run_baseline.py
 python experiments/run_all.py
-python experiments/run_phase3.py   # … through run_phase10.py
+python experiments/run_phase3.py   # … through run_phase11.py
 python experiments/run_phase10.py --quick
+python experiments/run_phase11.py  # matrix-free QN-CR (Thm. mf-qn)
 # Full MNIST (~60k): python experiments/run_phase10.py --full
 ```
 

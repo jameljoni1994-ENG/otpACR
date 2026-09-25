@@ -85,7 +85,7 @@ f(x_{k})
 
 \paragraph{المساهمات.}
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
-  \item \textbf{نظرية.} تطوير مكتفٍ ذاتيًا لتعقيد CR (مبرهنة~\ref{thm:cr-rate})، والتعجيل (مبرهنة~\ref{thm:acc-cr})، وARC (مبرهنة~\ref{thm:arc})، وشروط عدم الدقة (مبرهنة~\ref{thm:inexact})، وجدولة كريلوف التكيّفية (مبرهنة~\ref{thm:krylov-adapt}).
+  \item \textbf{نظرية.} تطوير مكتفٍ ذاتيًا لتعقيد CR (مبرهنة~\ref{thm:cr-rate})، والتعجيل (مبرهنة~\ref{thm:acc-cr})، وARC (مبرهنة~\ref{thm:arc})، وشروط عدم الدقة (مبرهنة~\ref{thm:inexact})، وجدولة كريلوف التكيّفية (مبرهنة~\ref{thm:krylov-adapt})، ونقل حساب المتبقي لخطوات L-BFGS التكعيبية بلا كثافة مع خطأ هيسيان صريح (مبرهنة~\ref{thm:mf-qn}).
   \item \textbf{خوارزميات.} نحدد خوارزميتي CR الدقيق وARC--Krylov كما في حزمة \textenglish{\texttt{cubic\_reg}}.
   \item \textbf{تجارب.} عشر مراحل: معدلات تحليلية، توسع كريلوف ($n\le 10^{4}$)، سياسات $\theta_{k}$، ARC موزّع، وMNIST مع مسح معاملات وإيقاف مبكر، ثم MNIST الكامل ($\approx 60$ ألفًا)، ومسار $\ell_{2}$، وتوسع الرسم التقريبي عند $n\in\{2{\cdot}10^{3},8{\cdot}10^{3},2{\cdot}10^{4}\}$.
   \item \textbf{برمجيات.} مسار ARC--Krylov الكانوني يستخدم نفس حل المسألة الفرعية غير الدقيق التكيّفي كما في أغلفة التدريب؛ وQN التكعيبي بلا مصفوفة كثيفة افتراضيًا؛ وCR العشوائي يكيّف $M$ باختبار نسبة.
@@ -367,8 +367,51 @@ $O\bigl(m\,C_{\mathrm{hvp}}+m^{2}n+T_{\mathrm{sec}}(m)\bigr)$.
 \label{prop:lbfgs}
 استبدال $H_{k}$ بمصفوفة L-BFGS محدودة الذاكرة $B_{k}\succ 0$ يحفظ طرح~\eqref{eq:opt-lin}--\eqref{eq:opt-psd} لكنه يفقد ضمان $O(1/k^{2})$ العالمي ما لم تُفرض حدود خطأ على تقريب الهيسيان.
 عمليًا، L-BFGS الصرف شديد المنافسة على النماذج الخطية المعممة.
-وتنفّذ حزمتنا $B_{k}$ عبر ضربات متجه مضغوطة فقط وتحل المسألة الفرعية التكعيبية بنفس إجراء كريلوف التكيّفي للمحور~2، متجنّبة بناء $B_{k}\in\R^{n\times n}$ صراحة عند $n\sim 10^{4}$.
 \end{proposition}
+
+\begin{theorem}[خطوة L-BFGS التكعيبية بلا مصفوفة كثيفة]
+\label{thm:mf-qn}
+لتكن $B_{k}$ هيسيانية L-BFGS محدودة الذاكرة من $\mu$ أزواج انحناء على الأكثر، تُطبَّق فقط عبر الضرب المضغوط $v\mapsto B_{k}v$ بتكلفة $O(\mu n+\mu^{2})$~\cite{byrd1994representationsations}.
+اعتبر النموذج التكعيبي الذي يستبدل $\hess f(x_{k})$ بـ $B_{k}$، وحُلّه بإجراء لانتشوز التكيّفي في المبرهنة~\ref{thm:krylov-adapt} مع استبدال HVP بضربات $B_{k}v$، فينتج $(s_{k},\lambda_{k})$ يحقق
+\begin{equation}
+\label{eq:resid-b}
+\norm{(B_{k}+\lambda_{k}I)s_{k}+g_{k}}
+\le
+\theta_{k}\norm{g_{k}}.
+\end{equation}
+عندئذٍ:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item \textbf{(تكافؤ تام على النموذج.)}
+  عندما يبلغ بُعد كريلوف $n$، تتطابق الخطوة مع المُصغِّر العالمي لنموذج $B_{k}$ التكعيبي؛ ويتحقق~\eqref{eq:resid-b} بمتبقٍ صفر.
+  \item \textbf{(تعقيد المسألة الفرعية.)}
+  لبُعد داخلي $\le m$ تكون التكلفة
+  $O\bigl(m(\mu n+\mu^{2})+m^{2}n+m^{3}\bigr)$ زمنًا و$O(\mu n)$ ذاكرة إضافية، دون بناء $B_{k}\in\R^{n\times n}$.
+  \item \textbf{(نقل تعقيد ARC تحت خطأ الهيسيان.)}
+  إذا كان $\norm{B_{k}-\hess f(x_{k})}\le\xi_{k}$ وبقي $\theta_{k}+\xi_{k}/\lambda_{\min}(B_{k}+\lambda_{k}I)$ تسلسل عدم دقة قابل للجمع بمعنى المبرهنة~\ref{thm:inexact}، فإن تعقيد ARC من رتبة $O(\varepsilon^{-3/2})$ في المبرهنة~\ref{thm:arc} ينطبق على الهدف الحقيقي $f$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(١) كما في المبرهنة~\ref{thm:krylov-adapt} مع استبدال المؤثر $H$ بـ $B_{k}$: لانتشوز الكامل يستعيد الأساس الذاتي لـ $B_{k}$ في الحساب الدقيق.
+(٢) مباشرة من الضرب المضغوط والقضية~\ref{prop:cost}.
+لـ (٣) اكتب
+\[
+\norm{(H_{k}+\lambda_{k}I)s_{k}+g_{k}}
+\le
+\norm{(B_{k}+\lambda_{k}I)s_{k}+g_{k}}
++
+\norm{(H_{k}-B_{k})s_{k}}.
+\]
+الحد الأول $\le\theta_{k}\norm{g_{k}}$ من~\eqref{eq:resid-b}، والثاني $\le\xi_{k}\norm{s_{k}}$.
+وعلى خطوات ARC الناجحة $\lambda_{k}=\tfrac{M_{k}}{2}\norm{s_{k}}$ وتعطي علاقة الأمثلية التكعيبية $\norm{s_{k}}=O(\norm{g_{k}}/\lambda_{\min}(B_{k}+\lambda_{k}I))$ حتى ثوابت مطلقة~\cite{cartis2011arc}، فيظهر تسامح متبقٍ فعّال من رتبة $\theta_{k}+C\xi_{k}/\lambda_{\min}(\cdot)$.
+ومتى حقق هذا التسلسل فرضيات المبرهنة~\ref{thm:inexact} ينتقل نفس جدال الشحن إلى التعقيد الخارجي.
+\end{proof}
+
+\begin{remark}
+\label{rem:mf-qn-practice}
+عمليًا نأخذ $\theta_{k}=\theta_{0}/(k+1)^{p}$ كما في ARC--Krylov، ونبقي $\mu\approx 10$--$20$، ونكيّف $M_{k}$ اختياريًا باختبار نسبة على نموذج $B_{k}$.
+وعندما يكون تقريب $B_{k}$ لـ $H_{k}$ ضعيفًا ( $\xi_{k}$ كبير)، قد يفشل البند (٣) فيسلك الأسلوب سلوك عولمة لـ L-BFGS لا أسلوب نيوتن حافظ للتعقيد --- بما يتسق مع القضية~\ref{prop:lbfgs}.
+\end{remark}
 
 \section{سبعة محاور للتحسين}
 \label{sec:axes}
@@ -392,7 +435,7 @@ HVP بلانتشوز؛ $m$ و$\theta_{k}$ تكيّفيان (مبرهنتان~\re
 ضغط الهيسيان قبل الاختزال؛ قياس التسريع مقابل عدد العمال.
 
 \paragraph{المحور 7 --- CR شبه-نيوتن.}
-أزواج ذاكرة L-BFGS داخل النموذج التكعيبي عبر ضربات $B_{k}v$ بلا مصفوفة كاملة وحل كريلوف للمسألة الفرعية؛ مقارنة مع L-BFGS الصرف.
+أزواج ذاكرة L-BFGS داخل النموذج التكعيبي عبر ضربات $B_{k}v$ بلا مصفوفة كاملة وحل كريلوف للمسألة الفرعية (مبرهنة~\ref{thm:mf-qn})؛ مقارنة مع L-BFGS الصرف و$B_{k}$ الكثيفة.
 
 \section{الخوارزميات}
 \label{sec:algo}
@@ -533,19 +576,39 @@ QN-CR (بلا كثافة) & 0.910 & 2.6 & $B_{k}v$ مضغوط + كريلوف \\
 \label{fig:p10sketch}
 \end{figure}
 
+\subsection{QN-CR بلا كثافة (مبرهنة~\ref{thm:mf-qn})}
+تتحقق المرحلة~11 من تطابق الضرب المضغوط لـ BFGS مع $B_{k}$ الكثيفة ومن توسع QN-CR بلا كثافة (\textenglish{\texttt{experiments/run\_phase11.py}}).
+على أزواج انحناء عشوائية يتفق \textenglish{matvec} مع $B_{k}v$ حتى دقة الآلة.
+وعلى تربيعية بـ $n=40$ يصل المساران إلى نفس الأمثل تقريبًا.
+وتبقى الطريقة عملية حتى $n=4{\cdot}10^{3}$ دون تخزين $B_{k}$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{28_phase11_qn_scale.png}
+\caption{توسع زمن QN-CR بلا كثافة.}
+\label{fig:p11scale}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{29_phase11_bfgs_ops.png}
+\caption{تكلفة \textenglish{\texttt{to\_dense}} مقابل \textenglish{matvec}.}
+\label{fig:p11ops}
+\end{figure}
+
 \section{مناقشة}
 \label{sec:discuss}
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{النظرية مقابل التطبيق.} المبرهنات~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} تبرّر ARC--Krylov التكيّفي كطريقة واسعة النطاق تحافظ على التعقيد. وعلى النماذج الخطية المعممة غالبًا يفوز L-BFGS بالزمن لأن كل تكرار أرخص من فضاء كريلوف حتى المتواضع (جدول~\ref{tab:full}).
+  \item \textbf{النظرية مقابل التطبيق.} المبرهنات~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} و~\ref{thm:mf-qn} تبرّر ARC--Krylov وQN-CR بلا كثافة كطرق واسعة النطاق واعية بالتعقيد. وعلى النماذج الخطية المعممة غالبًا يفوز L-BFGS بالزمن (جدول~\ref{tab:full}).
   \item \textbf{التعميم.} تحسين $\norm{\grad f}$ ليس وكيلًا لدقة الاختبار؛ مراقبة التحقق ضرورية (جداول~\ref{tab:softmax}--\ref{tab:full}).
-  \item \textbf{متى يُستخدم CR.} يُفضَّل ARC--Krylov عند توفر HVP وأهمية جودة الحل. ويُفضَّل L-BFGS+ES للتدريب الروتيني متعدد التصنيفات؛ وQN-CR بلا كثافة حل وسط منافس على MNIST الكامل.
-  \item \textbf{القيود.} طرق الموتر استكشافية؛ تسريع الرسم الموزّع متواضع بسبب عبء العمليات في Python؛ ويبقى اتصال MPI الحقيقي وجداول $(M,\ell_{2})$ المشتركة أبعد من المسارات ذات التهيئة الدافئة عملًا مفتوحًا.
+  \item \textbf{متى يُستخدم CR.} يُفضَّل ARC--Krylov عند توفر HVP وأهمية جودة الحل. ويُفضَّل L-BFGS+ES للتدريب الروتيني؛ وQN-CR بلا كثافة هو الهجين القابل للتوسع في المبرهنة~\ref{thm:mf-qn}.
+  \item \textbf{القيود.} طرق الموتر استكشافية؛ تسريع الرسم الموزّع متواضع؛ ويصعب اعتماد فرضية خطأ الهيسيان في المبرهنة~\ref{thm:mf-qn}(٣) مسبقًا لـ L-BFGS.
 \end{itemize}
 
 \section{البرمجيات}
 توفر حزمة \textenglish{\texttt{cubic\_reg}} (الإصدار~$0.2$) الحالّات والمسائل والمقاييس وأغلفة التدريب (\textenglish{\texttt{arc\_krylov\_early\_stop}}، \textenglish{\texttt{l2\_path\_early\_stop}}) والرسوم وسكربتات المراحل.
-وتغطي اختبارات الوحدة $34$ اختبارًا ناجحًا.
+وتغطي اختبارات الوحدة $36$ اختبارًا ناجحًا.
 
 \section{خاتمة}
 قدّمنا عرضًا نظريًا موحّدًا للتنظيم التكعيبي --- المعدلات العالمية، والتعجيل، وتعقيد ARC، وشروط كريلوف غير الدقيقة التكيّفية --- مع تقييم تجريبي يشمل MNIST حتى المقياس الكامل.
@@ -606,6 +669,11 @@ QN-CR (بلا كثافة) & 0.910 & 2.6 & $B_{k}v$ مضغوط + كريلوف \\
 وتسمح كتابة الدمج في المرحلة~10 بإعادة تشغيل جزئية (\textenglish{\texttt{--skip-mnist}}/\textenglish{\texttt{--skip-l2}}/\textenglish{\texttt{--skip-sketch}}) دون مسح الأقسام الشقيقة.
 
 \begin{thebibliography}{99}
+\bibitem{byrd1994representationsations}
+R.~H.~Byrd, J.~Nocedal, and R.~B.~Schnabel.
+Representations of quasi-Newton matrices and their use in limited memory methods.
+\textit{Mathematical Programming}, 63:129--156, 1994.
+
 \bibitem{nesterov2006cubic}
 Y.~Nesterov and B.~T.~Polyak.
 Cubic regularization of Newton method and its global performance.

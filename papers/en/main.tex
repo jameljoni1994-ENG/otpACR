@@ -84,7 +84,7 @@ The $O(n^{3})$ cost (and $O(n^{2})$ memory) precludes large-scale machine learni
 
 \paragraph{Contributions.}
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
-  \item \textbf{Theory.} We give a self-contained development of CR global complexity (Theorem~\ref{thm:cr-rate}), accelerated CR (Theorem~\ref{thm:acc-cr}), ARC complexity (Theorem~\ref{thm:arc}), and sufficient inexact subproblem conditions (Theorem~\ref{thm:inexact}). We prove that adaptive Krylov growth under residual tests recovers exact-rate guarantees (Theorem~\ref{thm:krylov-adapt}).
+  \item \textbf{Theory.} We give a self-contained development of CR global complexity (Theorem~\ref{thm:cr-rate}), accelerated CR (Theorem~\ref{thm:acc-cr}), ARC complexity (Theorem~\ref{thm:arc}), and sufficient inexact subproblem conditions (Theorem~\ref{thm:inexact}). We prove that adaptive Krylov growth under residual tests recovers exact-rate guarantees (Theorem~\ref{thm:krylov-adapt}), and that matrix-free L-BFGS cubic steps inherit the same residual calculus with an explicit Hessian-error transfer (Theorem~\ref{thm:mf-qn}).
   \item \textbf{Algorithms.} We specify Algorithms~\ref{alg:cr}--\ref{alg:arc-krylov} as implemented in the \texttt{cubic\_reg} package.
   \item \textbf{Experiments.} Ten experimental phases cover analytic rates, high-dimensional Krylov scalability ($n\le 10^{4}$), adaptive $\theta_{k}$ schedules, sketched distributed ARC, real MNIST (binary and multiclass) with early stopping, full-scale MNIST ($\approx 60$k), $\ell_{2}$ path schedules, and sketch scaling at $n\in\{2{\cdot}10^{3},8{\cdot}10^{3},2{\cdot}10^{4}\}$.
   \item \textbf{Software.} Canonical ARC--Krylov uses the same adaptive inexact subproblem path as training wrappers; quasi-Newton CR is matrix-free by default; stochastic CR adapts $M$ via a ratio test.
@@ -432,8 +432,52 @@ $\norm{\tilde g_{k}-g_{k}}\le\nu_{k}$ and $\norm{\tilde H_{k}-H_{k}}\le\xi_{k}$ 
 \label{prop:lbfgs}
 Replacing $H_{k}$ by a limited-memory BFGS matrix $B_{k}\succ 0$ preserves well-posedness of~\eqref{eq:opt-lin}--\eqref{eq:opt-psd} but forfeits the global $O(1/k^{2})$ guarantee unless additional Hessian-approximation error bounds hold.
 Empirically, pure L-BFGS (without cubic regularization) remains highly competitive on generalized linear models.
-Our implementation applies $B_{k}$ only through compact matrix--vector products and solves the cubic subproblem by the same adaptive Krylov procedure as Axis~2, avoiding an explicit $B_{k}\in\R^{n\times n}$ at $n\sim 10^{4}$.
 \end{proposition}
+
+\begin{theorem}[Matrix-free L-BFGS cubic step]
+\label{thm:mf-qn}
+Let $B_{k}$ be the limited-memory BFGS Hessian built from at most $\mu$ curvature pairs, applied only through the compact product $v\mapsto B_{k}v$ of cost $O(\mu n+\mu^{2})$~\cite{byrd1994representationsations}.
+Consider the cubic model that uses $B_{k}$ in place of $\hess f(x_{k})$, and solve it by the adaptive Lanczos procedure of Theorem~\ref{thm:krylov-adapt} with HVPs replaced by $B_{k}v$ products, yielding $(s_{k},\lambda_{k})$ with
+\begin{equation}
+\label{eq:resid-b}
+\norm{(B_{k}+\lambda_{k}I)s_{k}+g_{k}}
+\le
+\theta_{k}\norm{g_{k}}.
+\end{equation}
+Then:
+\begin{enumerate}[leftmargin=*,itemsep=1pt]
+  \item \textbf{(Exact equivalence on the model.)}
+  When the Krylov dimension reaches $n$, the computed step coincides with the exact global minimizer of the $B_{k}$-cubic model; in particular~\eqref{eq:resid-b} holds with residual $0$.
+  \item \textbf{(Complexity of one subproblem.)}
+  With inner dimension at most $m\le n$, one subproblem costs
+  $O\bigl(m(\mu n+\mu^{2})+m^{2}n+m^{3}\bigr)$ time and $O(\mu n)$ extra memory, never forming $B_{k}\in\R^{n\times n}$.
+  \item \textbf{(Outer ARC transfer under Hessian error.)}
+  If $\norm{B_{k}-\hess f(x_{k})}\le\xi_{k}$ and $\theta_{k}+\xi_{k}/\lambda_{\min}(B_{k}+\lambda_{k}I)$ remains a summable inexactness sequence in the sense of Theorem~\ref{thm:inexact}, then the ARC iteration complexity $O(\varepsilon^{-3/2})$ of Theorem~\ref{thm:arc} continues to apply to the true objective $f$.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) follows exactly as in Theorem~\ref{thm:krylov-adapt} with the linear operator $H$ replaced by the SPD (or positive definite after damping) operator $B_{k}$: full Lanczos reproduces the eigenbasis of $B_{k}$ in exact arithmetic.
+(2) is immediate from the compact BFGS product and Proposition~\ref{prop:cost}.
+For (3), write
+\[
+\norm{(H_{k}+\lambda_{k}I)s_{k}+g_{k}}
+\le
+\norm{(B_{k}+\lambda_{k}I)s_{k}+g_{k}}
++
+\norm{(H_{k}-B_{k})s_{k}}.
+\]
+The first term is $\le\theta_{k}\norm{g_{k}}$ by~\eqref{eq:resid-b}.
+The second is $\le\xi_{k}\norm{s_{k}}$.
+On successful ARC steps one has $\lambda_{k}=\tfrac{M_{k}}{2}\norm{s_{k}}$ and the cubic optimality relation yields $\norm{s_{k}}=O(\norm{g_{k}}/\lambda_{\min}(B_{k}+\lambda_{k}I))$ up to absolute constants~\cite{cartis2011arc}, hence an effective residual tolerance of order $\theta_{k}+C\xi_{k}/\lambda_{\min}(\cdot)$.
+Whenever this effective sequence satisfies the hypotheses of Theorem~\ref{thm:inexact}, the same charging argument yields the claimed outer complexity.
+\end{proof}
+
+\begin{remark}
+\label{rem:mf-qn-practice}
+In code we take $\theta_{k}=\theta_{0}/(k+1)^{p}$ exactly as for ARC--Krylov, keep $\mu\approx 10$--$20$, and optionally adapt $M_{k}$ by a ratio test on the $B_{k}$-model.
+When $B_{k}$ is a poor approximation of $H_{k}$ (large $\xi_{k}$), Theorem~\ref{thm:mf-qn}(3) may fail and the method behaves as a globalization of L-BFGS rather than a complexity-preserving Newton method---consistent with Proposition~\ref{prop:lbfgs}.
+\end{remark}
 
 %======================================================================
 \section{Seven Improvement Axes}
@@ -461,7 +505,7 @@ Third-order models with quartic regularization~\cite{nesterov2021implementable};
 Sketch Hessians before reduction; measure speedup vs.\ workers with persistent pools.
 
 \paragraph{Axis 7 --- Quasi-Newton CR.}
-L-BFGS memory pairs inside the cubic model via matrix-free $B_{k}v$ products and Krylov subproblem solves; compare to plain L-BFGS.
+L-BFGS memory pairs inside the cubic model via matrix-free $B_{k}v$ products and Krylov subproblem solves (Theorem~\ref{thm:mf-qn}); compare to plain L-BFGS and dense $B_{k}$.
 
 %======================================================================
 \section{Algorithms}
@@ -633,16 +677,37 @@ Matrix-free sketched ARC--Krylov on analytic quadratics reports wall times $\app
 \label{fig:l2path}
 \end{figure}
 
+\subsection{Matrix-free QN-CR (Theorem~\ref{thm:mf-qn})}
+Phase~11 checks the compact BFGS product against dense $B_{k}$ and scales matrix-free QN-CR (\texttt{experiments/run\_phase11.py}).
+On random curvature pairs the matvec agrees with $B_{k}v$ to machine precision ($\max$ absolute error $<10^{-12}$).
+On a quadratic with $n=40$, matrix-free and dense QN-CR reach the same optimum up to $10^{-8}$ in $f$ and $x$.
+Operator timings show \texttt{to\_dense} growing far faster than a single matvec; end-to-end QN-CR with $\mu=10$ remains practical through $n=4{\cdot}10^{3}$ without ever storing $B_{k}$.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{28_phase11_qn_scale.png}
+\caption{QN-CR matrix-free wall time.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{29_phase11_bfgs_ops.png}
+\caption{\texttt{to\_dense} vs.\ matvec.}
+\end{subfigure}
+\caption{Empirical support for Theorem~\ref{thm:mf-qn}: scaling of matrix-free QN-CR and cost of compact BFGS products.}
+\label{fig:p11}
+\end{figure}
+
 %======================================================================
 \section{Discussion}
 \label{sec:discuss}
 %======================================================================
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Theory vs.\ practice.} Theorems~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} justify adaptive inexact ARC--Krylov as a complexity-preserving large-scale method. On GLMs, L-BFGS often wins wall-clock races because each iteration is cheaper than even modest Krylov subspaces (Table~\ref{tab:full}).
+  \item \textbf{Theory vs.\ practice.} Theorems~\ref{thm:cr-rate}--\ref{thm:krylov-adapt} and~\ref{thm:mf-qn} justify adaptive inexact ARC--Krylov and matrix-free QN-CR as complexity-aware large-scale methods. On GLMs, L-BFGS often wins wall-clock races because each iteration is cheaper than even modest Krylov subspaces (Table~\ref{tab:full}).
   \item \textbf{Generalization.} Optimizing $\norm{\grad f}$ is not a proxy for test accuracy; validation monitoring is essential (Tables~\ref{tab:softmax}--\ref{tab:full}).
-  \item \textbf{When to use CR.} Prefer ARC--Krylov when the Hessian is available via HVPs and solution quality matters (nonconvex analytic problems, ill-conditioned quadratics). Prefer L-BFGS+ES for routine multiclass logistic training; matrix-free QN-CR is a competitive middle ground on full MNIST.
-  \item \textbf{Limitations.} Tensor methods remain exploratory; distributed sketching speedups on shared-memory pools are modest due to Python process overhead; true MPI communication and joint $(M,\ell_{2})$ schedules beyond warm-started paths remain open.
+  \item \textbf{When to use CR.} Prefer ARC--Krylov when the Hessian is available via HVPs and solution quality matters (nonconvex analytic problems, ill-conditioned quadratics). Prefer L-BFGS+ES for routine multiclass logistic training; matrix-free QN-CR is a competitive middle ground on full MNIST and the scalable cubic hybrid of Theorem~\ref{thm:mf-qn}.
+  \item \textbf{Limitations.} Tensor methods remain exploratory; distributed sketching speedups on shared-memory pools are modest due to Python process overhead; true MPI communication and joint $(M,\ell_{2})$ schedules beyond warm-started paths remain open. The Hessian-error hypothesis in Theorem~\ref{thm:mf-qn}(3) is rarely certified a priori for L-BFGS.
 \end{itemize}
 
 %======================================================================
@@ -650,7 +715,7 @@ Matrix-free sketched ARC--Krylov on analytic quadratics reports wall times $\app
 \label{sec:soft}
 %======================================================================
 The package \texttt{cubic\_reg} (version~$0.2$) implements solvers (\texttt{cr}, \texttt{krylov}, \texttt{arc}, \texttt{quasi\_newton}, \texttt{stochastic}, \texttt{sketch\_krylov}, \ldots), problem oracles, metrics, training helpers (\texttt{arc\_krylov\_early\_stop}, \texttt{l2\_path\_early\_stop}), and plotting.
-Phase scripts reproduce all tables/figures; \texttt{pytest} reports $34$ passed tests.
+Phase scripts reproduce all tables/figures; \texttt{pytest} reports $36$ passed tests.
 
 %======================================================================
 \section{Conclusion}
@@ -717,6 +782,11 @@ Softmax HVPs are implemented exactly via Jacobians of the linear map $W\in\R^{10
 Phase~10 merge-writes allow partial reruns (\texttt{--skip-mnist}/\texttt{--skip-l2}/\texttt{--skip-sketch}) without erasing sibling sections.
 
 \begin{thebibliography}{99}
+\bibitem{byrd1994representationsations}
+R.~H.~Byrd, J.~Nocedal, and R.~B.~Schnabel.
+Representations of quasi-Newton matrices and their use in limited memory methods.
+\textit{Mathematical Programming}, 63:129--156, 1994.
+
 \bibitem{nesterov2006cubic}
 Y.~Nesterov and B.~T.~Polyak.
 Cubic regularization of Newton method and its global performance.
